@@ -48,6 +48,7 @@ export default function FileUploader({
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
+  const [hasOversized, setHasOversized] = useState(false);
 
   const allowedExts = getAllowedExtensions(fileType);
 
@@ -55,6 +56,7 @@ export default function FileUploader({
     const fileArr = Array.from(newFiles);
     const errs: string[] = [];
     const valid: SelectedFile[] = [];
+    let oversized = false;
 
     for (const file of fileArr) {
       if (!validateFileType(file, allowedExts)) {
@@ -63,6 +65,7 @@ export default function FileUploader({
       }
       if (!validateFileSize(file)) {
         errs.push(`${file.name}: 파일 크기가 100MB를 초과합니다.`);
+        oversized = true;
         continue;
       }
       const item: SelectedFile = { file };
@@ -73,6 +76,7 @@ export default function FileUploader({
     }
 
     setErrors(errs);
+    setHasOversized(oversized);
     if (valid.length > 0) {
       onChange(multiple ? [...files, ...valid] : valid.slice(0, 1));
     }
@@ -139,6 +143,21 @@ export default function FileUploader({
               {err}
             </p>
           ))}
+        </div>
+      )}
+
+      {hasOversized && (
+        <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+          <p className="font-medium mb-1">📧 파일 용량 초과 안내</p>
+          <p>
+            100MB를 초과하는 파일은 이메일로 직접 송부해 주세요.
+          </p>
+          <a
+            href="mailto:galtensh@hanmail.net"
+            className="font-semibold underline hover:text-amber-900"
+          >
+            galtensh@hanmail.net
+          </a>
         </div>
       )}
 
