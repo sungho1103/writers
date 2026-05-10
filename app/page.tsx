@@ -1,4 +1,5 @@
 import SubmissionForm from "@/components/SubmissionForm";
+import Link from "next/link";
 
 export default function Home() {
   return (
@@ -8,7 +9,7 @@ export default function Home() {
         <div className="max-w-5xl mx-auto px-6 py-5 flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-[#2c2c2c] tracking-tight">
-              글마루 편집출판
+              정음랩
             </h1>
             <p className="text-xs text-[#8a8a8a] mt-0.5">원고 편집 · 출판 의뢰 전문</p>
           </div>
@@ -22,6 +23,32 @@ export default function Home() {
             <a href="#form" className="hover:text-[#7c5c3a] transition-colors">
               원고 투고
             </a>
+            <Link
+              href="/admin"
+              className="text-[#8a8a8a] hover:text-[#7c5c3a] transition-colors"
+              title="관리자 로그인"
+              aria-label="관리자 페이지"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+              </svg>
+            </Link>
           </nav>
         </div>
       </header>
@@ -126,9 +153,9 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="border-t border-[#e0d9d0] bg-white py-8 px-6 text-center">
-        <p className="text-sm font-semibold text-[#2c2c2c] mb-1">글마루 편집출판</p>
+        <p className="text-sm font-semibold text-[#2c2c2c] mb-1">정음랩</p>
         <p className="text-xs text-[#8a8a8a]">
-          © 2025 글마루 편집출판. All rights reserved.
+          © 2026 정음랩. All rights reserved.
         </p>
       </footer>
     </div>
