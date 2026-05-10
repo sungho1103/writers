@@ -56,12 +56,20 @@ export default function SubmissionComplete({ authorName, email, onReset }: Props
           </li>
         </ol>
       </div>
-      <button
-        onClick={onReset}
-        className="text-sm text-[#7c5c3a] hover:underline"
-      >
-        새 원고 투고하기
-      </button>
+      <div className="flex flex-col items-center gap-3">
+        <button
+          onClick={onReset}
+          className="text-sm text-[#7c5c3a] hover:underline"
+        >
+          새 원고 투고하기
+        </button>
+        <a
+          href="/"
+          className="text-sm text-[#8a8a8a] hover:text-[#7c5c3a] hover:underline transition-colors"
+        >
+          사이트로 돌아가기
+        </a>
+      </div>
     </div>
   );
 }
