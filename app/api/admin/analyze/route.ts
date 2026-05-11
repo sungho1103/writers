@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { isAdminAuthenticated } from "@/lib/auth";
 import OpenAI from "openai";
-import pdfParse from "pdf-parse";
 
 function getOpenAI() {
   return new OpenAI({
@@ -19,6 +18,10 @@ async function extractPdfTextFromUrl(downloadUrl: string): Promise<string> {
     }
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
+
+    // Use dynamic require to avoid ESM/CJS issues with pdf-parse
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const pdfParse = require("pdf-parse");
     const parsed = await pdfParse(buffer);
     return parsed.text || "";
   } catch (err) {
@@ -78,7 +81,7 @@ export async function POST(request: NextRequest) {
       );
       pdfTextContent = pdfTexts.filter(Boolean).join("\n\n");
 
-      // Limit to ~60000 chars to stay within token limits (~15k tokens)
+      // Limit to ~60000 chars to stay within token limits
       if (pdfTextContent.length > 60000) {
         pdfTextContent = pdfTextContent.substring(0, 60000) + "\n\n[원고가 길어 앞부분만 분석합니다]";
       }
@@ -111,8 +114,8 @@ export async function POST(request: NextRequest) {
 ## 원고 기본 정보
 - 제목: ${submission.title}
 - 의뢰 유형: ${requestTypes}
-- 원고 설명: ${submission.description || submission.manuscript_description || "없음"}
-- 추가 요청사항: ${submission.requirements || submission.additional_requests || "없음"}
+- 원고 설명: ${submission.description || "없음"}
+- 추가 요청사항: ${submission.requirements || "없음"}
 - 업로드 파일: ${fileList}
 
 ${hasPdfContent ? `## 실제 원고 내용 (PDF에서 추출)
