@@ -10,18 +10,14 @@ function getOpenAI() {
   });
 }
 
-async function extractPdfText(supabase: ReturnType<typeof createServiceClient>, filePath: string): Promise<string> {
+async function extractPdfTextFromUrl(downloadUrl: string): Promise<string> {
   try {
-    const { data, error } = await supabase.storage
-      .from("book-submissions")
-      .download(filePath);
-
-    if (error || !data) {
-      console.error("PDF download error:", error);
+    const response = await fetch(downloadUrl);
+    if (!response.ok) {
+      console.error("PDF fetch error:", response.status, response.statusText);
       return "";
     }
-
-    const arrayBuffer = await data.arrayBuffer();
+    const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     const parsed = await pdfParse(buffer);
     return parsed.text || "";
@@ -62,30 +58,40 @@ export async function POST(request: NextRequest) {
       console.error("Files error:", filesError);
     }
 
-    // Extract text from PDF files
+    // Extract text from PDF files using download_url
     let pdfTextContent = "";
-    const pdfFiles = (files || []).filter((f: { file_type: string }) => f.file_type === "pdf");
+    const pdfFiles = (files || []).filter(
+      (f: { file_type: string; mime_type: string }) =>
+        f.file_type === "pdf" || f.mime_type === "application/pdf"
+    );
+
+    console.log(`Found ${pdfFiles.length} PDF files out of ${(files || []).length} total files`);
 
     if (pdfFiles.length > 0) {
       const pdfTexts = await Promise.all(
-        pdfFiles.map(async (f: { storage_path: string; original_name: string }) => {
-          const text = await extractPdfText(supabase, f.storage_path);
-          return text ? `[파일: ${f.original_name}]\n${text}` : "";
+        pdfFiles.map(async (f: { download_url: string; file_name: string }) => {
+          console.log(`Extracting text from: ${f.file_name}`);
+          const text = await extractPdfTextFromUrl(f.download_url);
+          console.log(`Extracted ${text.length} chars from ${f.file_name}`);
+          return text ? `[파일: ${f.file_name}]\n${text}` : "";
         })
       );
       pdfTextContent = pdfTexts.filter(Boolean).join("\n\n");
 
-      // Limit to ~60000 chars to stay within token limits
+      // Limit to ~60000 chars to stay within token limits (~15k tokens)
       if (pdfTextContent.length > 60000) {
         pdfTextContent = pdfTextContent.substring(0, 60000) + "\n\n[원고가 길어 앞부분만 분석합니다]";
       }
     }
 
+    const hasPdfContent = pdfTextContent.length > 100;
+    console.log(`PDF content available: ${hasPdfContent}, length: ${pdfTextContent.length}`);
+
     // Build analysis prompt
     const requestTypeLabels: Record<string, string> = {
       publishing: "출판",
       ebook: "전자책 제작",
-      editing: "본문편집 편집",
+      editing: "본문편집",
       proofreading: "교정교열",
       cover_design: "커버디자인",
     };
@@ -94,31 +100,32 @@ export async function POST(request: NextRequest) {
       .map((t: string) => requestTypeLabels[t] || t)
       .join(", ");
     const fileList = (files || [])
-      .map((f: { original_name: string; file_size: number }) => `${f.original_name} (${Math.round(f.file_size / 1024)}KB)`)
+      .map(
+        (f: { file_name: string; file_size: number }) =>
+          `${f.file_name} (${Math.round(f.file_size / 1024)}KB)`
+      )
       .join(", ");
-
-    const hasPdfContent = pdfTextContent.length > 0;
 
     const prompt = `당신은 전문 출판 편집자입니다. 아래 원고 정보${hasPdfContent ? "와 실제 원고 내용" : ""}를 분석하여 JSON 형식으로 출판 편집 분석 리포트를 작성해주세요.
 
 ## 원고 기본 정보
 - 제목: ${submission.title}
 - 의뢰 유형: ${requestTypes}
-- 원고 설명: ${submission.manuscript_description || "없음"}
-- 추가 요청사항: ${submission.additional_requests || "없음"}
+- 원고 설명: ${submission.description || submission.manuscript_description || "없음"}
+- 추가 요청사항: ${submission.requirements || submission.additional_requests || "없음"}
 - 업로드 파일: ${fileList}
 
-${hasPdfContent ? `## 실제 원고 내용
+${hasPdfContent ? `## 실제 원고 내용 (PDF에서 추출)
 ${pdfTextContent}
 
-위 실제 원고 내용을 바탕으로 구체적이고 정확한 분석을 해주세요.` : ""}
+위 실제 원고 내용을 바탕으로 구체적이고 정확한 분석을 해주세요. 실제 문장, 단어, 구조를 언급하세요.` : ""}
 
-## 분석 항목 (JSON 형식으로 응답)
+## 분석 항목 (JSON 형식으로만 응답)
 {
-  "summary": "전체 요약 (3-5문장)",
-  "structure": "원고 구조 분석${hasPdfContent ? " (실제 내용 기반)" : ""}",
-  "corrections": "교정 필요 사항${hasPdfContent ? " (구체적인 문장/단어 예시 포함)" : ""}",
-  "style": "문체 분석${hasPdfContent ? " (실제 문체 특징 기반)" : ""}",
+  "summary": "전체 요약 3-5문장${hasPdfContent ? " (실제 내용 기반)" : ""}",
+  "structure": "원고 구조 분석${hasPdfContent ? " (실제 목차/장 구성 포함)" : ""}",
+  "corrections": "교정 필요 사항${hasPdfContent ? " (실제 문장 예시와 함께)" : ""}",
+  "style": "문체 분석${hasPdfContent ? " (실제 문체 특징)" : ""}",
   "workload": {
     ${submission.request_types.map((t: string) => `"${t}": "예상 시간 (근거 포함)"`).join(",\n    ")}
   },
@@ -126,7 +133,7 @@ ${pdfTextContent}
   "risks": "리스크 및 유의사항"
 }
 
-JSON만 응답하세요. 다른 텍스트는 포함하지 마세요.`;
+반드시 JSON만 응답하세요. 다른 텍스트는 포함하지 마세요.`;
 
     const openai = getOpenAI();
     const completion = await openai.chat.completions.create({
